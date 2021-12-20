@@ -1,0 +1,174 @@
+-- settings.py  --> Command center to our entire project.
+
+-- Difference between auto_now and auto_now_add :
+    > auto_now takes a snap shot on every time we save that item/model.
+    > auto_now_add only takes a timestamp when we first take/save this instance.
+
+-- makemigrations is like staging area before you make any changes to database.
+
+-- Meaning of different on_delete :
+    > SET_NUll : If the parent is deleted, it's children will stay in the database.
+    > CASCADE  : If the parent is deleted, it's children will also get deleted from the database.
+
+-- ModelForm is a class based representation of a form.
+
+-- form.as_p : Here as_p will wrap a paragraph tag around every field.
+
+-- In order for a form to be pre-filled with the data, use instance parameter as follows :
+    room = Room.objects.get(id=pk)
+    form = RoomForm(instance=room)
+
+-- If we are updating a form, we will still use POST method. But to prevent django from creating a new room with the updated
+   data of the existing room, we have to tell django that "Kindly UPDATE this Room, and do not create a new Room" by adding
+   instance parameter.
+        if request.method == 'POST':
+            form = RoomForm(request.POST, instance=room)
+
+-- In this web application, if user deletes anything, there is a generic delete.html file made for each delete request throughout
+   the application. In this template, there is a button called - Go back. Which should ideally take the user back to the page from
+   where they came, if they decided not to delete the item. This can be achieved with the use of "request.META.HTTP_REFERER" variable.
+    <a href="{{ request.META.HTTP_REFERER }}">Go Back</a>
+
+-- To make the partition on front end, using only html and css :
+    > Create one main div. Give it a css class. Then create two separate div tags for the partition to be made.
+    > Then in the css class, use following code :
+        .home-container
+        {
+            display: grid;
+            grid-template-columns: 1fr 3fr;
+        }
+
+-- On clicking a link, if we want to pass some parameter with the url, which we can use into our views in order to perform
+   some db operations, we can use 'q' in both html and views like following :
+    > <a href="{% url 'home' %}?q={{ topic.name }}">{{ topic.name }}</a>
+    > q = request.GET.get('q')
+
+-- User Authentication :
+    > Import --> from django.contrib.auth import authenticate, login, logout
+    > user = authenticate(request, username=username, password=password)
+    > if user is not None:
+        login(request, user)
+    > Use decorator login_required in order to prevent the non-logged user.
+    > Use following check to prevent user from editing other user's rooms.
+            if request.user != room.host:
+                return HttpResponse("Only owner of the room can update! ")
+
+-- To hide edit and delete buttons from other user's rooms :
+    > Into home.html :
+       {% if request.user == room.host %}
+        <a href="{% url 'update-room' room.id %}">Edit</a>
+        <a href="{% url 'delete-room' room.id %}">Delete</a>
+       {% endif %}
+
+-- To restrict user from navigating to login page manually i.e. putting /login into the url and able to go to login page :
+    > In the LoginPage view, add following code block :
+            if request.user.is_authenticated:
+                return redirect('home')
+
+-- For the registration fields, we are using django's inbuilt UserCreation form.
+    > from django.contrib.auth.forms import UserCreationForm
+
+-- commit = False :
+    > if form.is_valid():
+       user = form.save(commit=False)
+    > Here, we are actually saving this form and freezing it in time here. Bcz we want to be able to
+      access the user that are created, meaning if the form ia valid, the user will be created and we
+      want to access this user right away.
+    > And why do we want to access the use ? To lower case all the info user has entered. Or in the
+      other words, we want to clean this data.
+
+-- How to see time since posted ?
+    > Use the pipe sign (|) to filter out the date created and use 'timesince'.
+        {{ message.created|timesince }} ago</p>
+
+-- If a room gets created by @kk, and he post a message, then if @aasawari posts a message, ideally,
+   both @kk and @aasawari should be displayed in participants list.
+    > At the time of submission of message, add following code :
+        room.participants.add(request.user)
+
+-- How to let know django that there is a static folder exists ?
+    > After creating static directory on root level, in the settings.py file,
+        STATICFILES_DIRS = [
+            BASE_DIR / 'static'
+        ]
+
+-- Right now, in the create-room functionality, we still have an option of selecting host. Which is not
+   correct. The host should be automatically selected, the one who is logged in. And also we don't want
+   participants to be visible here.
+    > In the forms.py, in the class RoomForm, add -
+        exclude = ['host', 'participants']
+    > But now backend should also know how to process the data now after excluding those fields.
+                if form.is_valid():
+                    room = form.save(commit=False)
+                    room.host = request.user
+                    room.save()
+
+-- How to create a input field that also has a dropdown select :
+    > <input required type="text" name="topic" list="topic-list" />
+      <datalist id="topic-list">
+        <select id="room_topic">
+            {% for topic in topics %}
+            <option value="{{ topic.name }}">{{ topic.name }}</option>
+            {% endfor %}
+        </select>
+      </datalist>
+    > Then we have to do some adjustments in the backend as well.
+        topic_name = request.POST.get('Topic')
+        topic, created = Topic.objects.get_or_create(name=topic_name)
+
+-- get_or_create() :
+    > So here, we already have Python as a topic in our app.
+    > topic_name = request.POST.get('Topic')
+      topic, created = Topic.objects.get_or_create(name=topic_name)
+    > In the above code line, since the Python is already in the db, It will only 'get' the topic and
+      make created=False.
+    > If we add Java as a topic name, which is not there in db, it will create a new entry/object into the db
+      and make created=True.
+
+-- safe=False is to convert non-dict objects into JSON data.
+    > routes = [
+            'GET /api',
+            'GET /api/rooms',
+            'GET /api/rooms/:id'
+        ]
+        return JsonResponse(routes, safe=False)
+
+-- Why to use serializers classes in DRF ?
+    > If we do not use the serializer class, and try to return a queryset, which is list of objects, using drf Response, it will through the
+      error - object of type <class_name> is not JSON Serializable.
+    > It means Response cannot return back the python objects. We have to serialize it i.e. need to turn into JSON objects.
+
+
+-- Now in order to use different custom User method than 'CustomUserModel1' project, let's clear our database by deleting the sqlite3 db file.
+   So let's delete it.
+   Then delete all the migrations from last to first.
+   Then comment out all the models.
+   Then add custom User class. Tell django to look at this class as authentication class.
+   Then uncomment all the models and then migrate.
+   Then crete super user.
+
+-- There is a different way to handle user uploaded content/images. So we need to tell django where to upload these pics. And how to render out the
+   image url.
+    > In the settings.py, we already have "STATICFILES_DIRS" and that works for standerd images on our website and the css and js files.
+    > But for user uploaded contents, we need to  set "MEDIA_ROOT". This is gonna tell django where to upload these prof pics.
+        MEDIA_ROOT = BASE_DIR / 'static/images'
+    > Once we are done with defining the path for the user uploaded images, we need to have a url for these pics, just like for the static.
+        MEDIA_URL = '/images/'
+    > After that, we need configure our root directory urls.py. In here, we need to add the file paths to these urls.
+        from django.conf import settings
+        from django.conf.urls.static import static
+
+        urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    > Then run the migrations.
+    > Now using the admin panel, we can upload the profile pic for each user.
+
+-- Creating a db field for image upload is not enough. We have to render that pic out into various places in our app.
+    > In the feed-component.html, find the <img> tag, remove the existing random image generator code and put our code as :
+        <img src="{{ room.host.avatar.url }}" />
+
+-- After creating and rendering the image, now we have to work on submitting the image with the form.
+    > For that, in the frontend, we have to use following attribute in order to tell django that we are actually submitting a file with this post request.
+        enctype="multipart/form-data"
+    > And in the backend, in EditUser view, we just have to pass request.FILES.
+        form = UserForm(request.POST, request.FILES, instance=user)
+
